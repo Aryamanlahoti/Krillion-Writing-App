@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Krillion — Deep Dive Writer</title>
+  <style>
+    :root {
+      --navy: #060b18;
+      --panel: #0d172a;
+      --panel-border: #1e2d4a;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --cyan: #38bdf8;
+      --mint: #34d399;
+      --gold: #fbbf24;
+      --coral: #f87171;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--navy);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.8s ease;
+    }
+
+    /* Top Bar Header */
+    header {
+      background: rgba(13, 23, 42, 0.8);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: 1px;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .depth-badge {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* Main Layout */
+    .app-container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      flex: 1;
+      height: calc(100vh - 57px);
+    }
+
+    /* Sidebar: Project List */
+    sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--panel-border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    .sidebar-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .project-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .project-item {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.02);
+      transition: all 0.2s;
+    }
+
+    .project-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .project-item.active {
+      border-color: var(--cyan);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .project-item .title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .project-item .meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .btn-new-pack {
+      background: var(--cyan);
+      color: var(--navy);
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-new-pack:hover {
+      opacity: 0.9;
+    }
+
+    /* Main Writing Area */
+    main {
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      gap: 16px;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .pack-settings {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    input.input-title {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 1.8rem;
+      font-weight: 700;
+      width: 100%;
+      outline: none;
+    }
+
+    .goal-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    input.input-goal {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      padding: 4px 8px;
+      border-radius: 4px;
+      width: 80px;
+      font-size: 0.85rem;
+    }
+
+    /* Progress & Depth Bar */
+    .depth-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .progress-bar-bg {
+      background: rgba(255, 255, 255, 0.05);
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      background: linear-gradient(90deg, var(--cyan), var(--mint));
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .depth-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+
+    .depth-zone {
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    /* Text Area */
+    textarea.editor {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 20px;
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 1.1rem;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea.editor:focus {
+      border-color: var(--cyan);
+    }
+
+    .autosave-status {
+      font-size: 0.75rem;
+      color: var(--mint);
+      text-align: right;
+      height: 16px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .autosave-status.visible {
+      opacity: 1;
+    }
+
+    .btn-delete {
+      background: transparent;
+      border: 1px solid var(--coral);
+      color: var(--coral);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+
+    .btn-delete:hover {
+      background: rgba(248, 113, 113, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span>🌊</span> Krillion Deep Writer
+    </div>
+    <div class="depth-badge" id="headerDepth">Depth: 0m</div>
+  </header>
+
+  <div class="app-container">
+    <sidebar>
+      <button class="btn-new-pack" id="btnNewPack">+ New Story Pack</button>
+      <div class="sidebar-title">Your Writing Packs</div>
+      <ul class="project-list" id="projectList"></ul>
+    </sidebar>
+
+    <main>
+      <div class="pack-settings">
+        <input type="text" class="input-title" id="inputTitle" placeholder="Story Title..." />
+        <div class="goal-container">
+          <label for="inputGoal">Target Goal:</label>
+          <input type="number" class="input-goal" id="inputGoal" value="1000" min="100" step="100" />
+          <span>words</span>
+        </div>
+      </div>
+
+      <div class="depth-card">
+        <div class="depth-info">
+          <div><strong id="wordCount">0</strong> words written</div>
+          <div class="depth-zone" id="zoneName">Sunlight Zone (0m)</div>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <textarea class="editor" id="editor" placeholder="Begin writing your story here... Every milestone brings you deeper into the sea."></textarea>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn-delete" id="btnDelete">Delete Pack</button>
+        <div class="autosave-status" id="autosaveStatus">✓ Auto-saved</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const MAX_DEPTH_METERS = 10935; // Mariana Trench depth in meters
+
+    // Default seed state
+    let state = {
+      activeId: null,
+      projects: []
+    };
+
+    // Load from LocalStorage
+    function loadState() {
+      const saved = localStorage.getItem('krillion_writer_packs');
+      if (saved) {
+        try {
+          state = JSON.parse(saved);
+        } catch (e) {
+          console.error("Failed to parse saved state", e);
+        }
+      }
+      
+      if (!state.projects || state.projects.length === 0) {
+        const defaultPack = createNewPack("Abyssal Echoes", 1000, "The journey into the ocean depths begins with a single word...");
+        state.projects = [defaultPack];
+        state.activeId = defaultPack.id;
+      } else if (!state.activeId) {
+        state.activeId = state.projects[0].id;
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem('krillion_writer_packs', JSON.stringify(state));
+      showAutosaveIndicator();
+    }
+
+    function createNewPack(title = "Untitled Story Pack", goal = 1000, content = "") {
+      return {
+        id: 'pack_' + Date.now(),
+        title: title,
+        goal: goal,
+        content: content,
+        updatedAt: Date.now()
+      };
+    }
+
+    function getActiveProject() {
+      return state.projects.find(p => p.id === state.activeId) || state.projects[0];
+    }
+
+    function countWords(text) {
+      if (!text.trim()) return 0;
+      return text.trim().split(/\s+/).length;
+    }
+
+    function calculateDepth(words, goal) {
+      const progress = Math.min(words / Math.max(goal, 1), 1);
+      const depth = Math.round(progress * MAX_DEPTH_METERS);
+      return { progress, depth };
+    }
+
+    function getDepthZone(depth) {
+      if (depth < 200) return { name: "Sunlight Zone", color: "#060b18" };
+      if (depth < 1000) return { name: "Twilight Zone", color: "#040814" };
+      if (depth < 4000) return { name: "Midnight Zone", color: "#02050e" };
+      if (depth < 6000) return { name: "Abyssal Zone", color: "#01030a" };
+      return { name: "Hadral Trench Zone", color: "#000105" };
+    }
+
+    // UI Render logic
+    function renderSidebar() {
+      const listEl = document.getElementById('projectList');
+      listEl.innerHTML = '';
+
+      state.projects.forEach(project => {
+        const words = countWords(project.content);
+        const { depth } = calculateDepth(words, project.goal);
+
+        const li = document.createElement('li');
+        li.className = `project-item ${project.id === state.activeId ? 'active' : ''}`;
+        li.onclick = () => switchPack(project.id);
+
+        li.innerHTML = `
+          <div class="title">${escapeHtml(project.title || 'Untitled')}</div>
+          <div class="meta">
+            <span>${words} words</span>
+            <span>${depth}m</span>
+          </div>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+
+    function renderEditor() {
+      const project = getActiveProject();
+      document.getElementById('inputTitle').value = project.title;
+      document.getElementById('inputGoal').value = project.goal;
+      document.getElementById('editor').value = project.content;
+      updateMetrics();
+    }
+
+    function updateMetrics() {
+      const project = getActiveProject();
+      const words = countWords(project.content);
+      const { progress, depth } = calculateDepth(words, project.goal);
+      const zone = getDepthZone(depth);
+
+      document.getElementById('wordCount').textContent = words.toLocaleString();
+      document.getElementById('headerDepth').textContent = `Depth: ${depth.toLocaleString()}m`;
+      document.getElementById('zoneName').textContent = `${zone.name} (${depth.toLocaleString()}m)`;
+      document.getElementById('progressFill').style.width = `${Math.min(progress * 100, 100)}%`;
+
+      // Dynamically change background depth feel
+      document.body.style.backgroundColor = zone.color;
+    }
+
+    let saveTimeout = null;
+    function showAutosaveIndicator() {
+      const el = document.getElementById('autosaveStatus');
+      el.classList.add('visible');
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        el.classList.remove('visible');
+      }, 1500);
+    }
+
+    function switchPack(id) {
+      state.activeId = id;
+      saveState();
+      renderSidebar();
+      renderEditor();
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Event Listeners
+    document.getElementById('editor').addEventListener('input', (e) => {
+      const project = getActiveProject();
+      project.content = e.target.value;
+      project.updatedAt = Date.now();
+      updateMetrics();
+      renderSidebar();
+      saveState();
+    });
+
+    document.getElementById('inputTitle').addEventListener('input', (e) => {
+      const project = getActiveProject();
+      project.title = e.target.value;
+      renderSidebar();
+      saveState();
+    });
+
+    document.getElementById('inputGoal').addEventListener('change', (e) => {
+      const project = getActiveProject();
+      project.goal = Math.max(10, parseInt(e.target.value) || 1000);
+      updateMetrics();
+      renderSidebar();
+      saveState();
+    });
+
+    document.getElementById('btnNewPack').addEventListener('click', () => {
+      const newPack = createNewPack();
+      state.projects.unshift(newPack);
+      switchPack(newPack.id);
+    });
+
+    document.getElementById('btnDelete').addEventListener('click', () => {
+      if (state.projects.length <= 1) {
+        alert("You must keep at least one story pack.");
+        return;
+      }
+      if (confirm("Are you sure you want to delete this story pack?")) {
+        state.projects = state.projects.filter(p => p.id !== state.activeId);
+        state.activeId = state.projects[0].id;
+        saveState();
+        renderSidebar();
+        renderEditor();
+      }
+    });
+
+    // Initialize
+    loadState();
+    renderSidebar();
+    renderEditor();
+  </script>
+</body>
+</html>
